@@ -168,8 +168,6 @@ class SuiteDefinition(object):
             "NPROCY": "",
             "KEEP_WORKDIRS": keep_workdirs,
             "MEMBER": "",
-            "OBSTYPE": "",
-            "DA_STREAM": "",
             "TACTUS_TASK": "",
         }
 
@@ -616,7 +614,7 @@ class EcflowSuiteTask(EcflowNode):
             parent (EcflowNode): Parent node.
             ecf_files (str): Path to ecflow containers
             task_settings (TaskSettings): Submission configuration
-            config (tactus.ParsedConfig): Configuration file
+            config (ParsedConfig): Configuration file
             task_settings (tactus.TaskSettings): Task settings
             input_template(str, optional): Input template
             parse (bool, optional): To parse template file or not

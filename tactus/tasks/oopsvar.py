@@ -62,9 +62,8 @@ class OopsVar(Task):
 
         nproc = int(os.environ.get("NPROC", "128"))
 
-        odb_dir = os.path.join(
-            self.da_scratch, yyyy, mm, dd, rr, "odbmerge_3dvar", "ECMA"
-        )
+        # Written by OdbMerge (da_stream=upper_air) as <da.scratch>/<da_stream>/odbmerge
+        odb_dir = os.path.join(self.da_scratch, "upper_air", "odbmerge", "ECMA")
         # --- binary ---
         oovar_bin = self.get_binary("ifs4dvar.DP")
         bindir = os.path.dirname(oovar_bin)

@@ -19,7 +19,9 @@ from . import GeneralConstants
 from .cleaning import CleanTactus
 from .config_parser import BasicConfig, ConfigParserDefaults, ConfigPaths, ParsedConfig
 from .derived_variables import check_fullpos_namelist, derived_variables, set_times
+from .eps.eps_setup import EPSConfig
 from .experiment import case_setup
+from .general_utils import sanitize_case_name
 from .host_actions import TactusHost, set_tactus_home
 from .logs import logger
 from .namelist import (
@@ -76,7 +78,7 @@ def run_task(args: RunTaskNamespace, config: ParsedConfig):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     """
     logger.info("Prepare {}...", args.task)
@@ -110,7 +112,11 @@ def run_task(args: RunTaskNamespace, config: ParsedConfig):
         troika=args.troika,
         create_only=args.create_only,
     )
-    logger.info("Task {} submitted.", args.task)
+
+    msg = "created"
+    if not args.create_only:
+        msg += " and submitted"
+    logger.info("Task {} {}.", args.task, msg)
 
 
 def create_exp(args, config):
@@ -118,7 +124,7 @@ def create_exp(args, config):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     """
     known_hosts_file = args.host_file
@@ -151,16 +157,50 @@ def create_exp(args, config):
         start_suite(args, config)
 
 
+def create_compile_exp(args, config):
+    """Implement the 'compile' command.
+
+    Args:
+        args (argparse.Namespace): Parsed command line arguments.
+        config (ParsedConfig): Parsed config file contents.
+
+    """
+    if args.ial_tag is not None:
+        platform = Platform(config)
+        ial_tag_case = sanitize_case_name(platform.substitute(args.ial_tag))
+        config = config.copy(
+            update={
+                "compile": {
+                    "ial_git_version": args.ial_tag,
+                    "ial_git_tag_case": ial_tag_case,
+                },
+            }
+        )
+    if args.ial_repo is not None:
+        config = config.copy(update={"compile": {"ial_git_repo": args.ial_repo}})
+
+    args.config_mods = [
+        "tactus/data/config_files/modifications/@HOST@.toml",
+        "tactus/data/config_files/modifications/compile_suite.toml",
+        "tactus/data/config_files/modifications/compile_@HOST@.toml",
+    ]
+
+    create_exp(args, config)
+
+
 def start_suite(args, config):
     """Implement the 'start suite' command.
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     Raises:
         SystemExit: If error occurs while transferring files.
     """
+    if "eps" in config:
+        EPSConfig(**config.get_as_dict("eps"))
+
     tactus_home = set_tactus_home(config, args.tactus_home)
     config = config.copy(update={"platform": {"tactus_home": tactus_home}})
     config = config.copy(update=set_times(config))
@@ -333,7 +373,7 @@ def show_config(args, config):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     """
     logger.info("Printing requested configs...")
@@ -373,7 +413,7 @@ def show_config_schema(args, config):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     """
     logger.info("Printing JSON schema used in the validation of the configs...")
@@ -385,7 +425,7 @@ def show_host(args, config):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     """
     tactus_host = TactusHost()
@@ -503,7 +543,7 @@ def show_namelist(args, config):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     """
     tactus_home = set_tactus_home(config, args.tactus_home)
@@ -536,7 +576,7 @@ def namelist_integrate(args, config):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     Raises:
         SystemExit   # noqa: DAR401
@@ -601,7 +641,7 @@ def namelist_convert(args, config: ParsedConfig):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     """
     # Configuration
@@ -633,7 +673,7 @@ def namelist_format(args, config: ParsedConfig):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     """
     # Configuration
@@ -660,7 +700,7 @@ def replace_node(args, config):
 
     Args:
         args (argparse.Namespace): Parsed command line arguments.
-        config (.config_parser.ParsedConfig): Parsed config file contents.
+        config (ParsedConfig): Parsed config file contents.
 
     """
     tactus_home = set_tactus_home(config, args.tactus_home)

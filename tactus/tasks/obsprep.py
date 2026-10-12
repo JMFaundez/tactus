@@ -10,14 +10,14 @@ e.g. obs_provider = "LACE"
 Multi-file merging
 ------------------
 All candidates found in the archive are merged into a single file per obs
-type.  
+type.
 
 - **BUFR / GRIB**: files are concatenated byte-for-byte.
 - **OBSOUL**: files are merged via ``obsoul_merge.pl`` (configured via
-  ``da.obsoul_merge_script``).  
+  ``da.obsoul_merge_script``).
 - **NETCDF**: only the first file is used; a warning is issued when more
   than one is found.
-- **HDF**: No merging performed - radar files should be linked as site${i}   
+- **HDF**: No merging performed - radar files should be linked as site${i}
 
 Temporal windowing
 ------------------
@@ -31,15 +31,18 @@ Example: basetime 00 UTC, window_shift=-90 min, window_len=180 min →
 slots 23, 00, 01 should be searched (three different hours, possibly across
 two calendar dates).
 """
-import datetime as dt
+
+import contextlib
 import os
 import shutil
 import subprocess
 import tempfile
 from collections.abc import Mapping
 
-from ..datetime_utils import as_datetime
+from ..config_parser import GeneralConstants
+from ..datetime_utils import as_datetime, as_timedelta, split_date
 from ..logs import logger
+from ..obs_utils import Observations
 from ..os_utils import tactusmakedirs
 from .base import Task
 
@@ -47,16 +50,27 @@ from .base import Task
 class ObsPrep(Task):
     """Observation-preparation task.
 
-    Supported families (set via the *DA_STREAM* environment variable):
-    - ``surface`` stages only surface (SYNOP) observations for CANARI.
-    - ``3dvar``   stages all configured obs types for 3D-Var.
+    Supported families as defined by da_stream:
+    - ``surface`` stages only surface (SYNOP) observations for surface assimilation
+    - ``upper_air``   stages all configured obs types for upper_air
     """
 
-    DEFAULT_OBS_SURFACE = ["synop"] 
+    DEFAULT_OBS_SURFACE = ["synop"]
 
     DEFAULT_OBS_3DVAR = [
-        "synop", "gpssol", "amdar", "geowind", "hrwind",
-        "temp", "wp", "seviri", "amsua", "amsub", "iasi", "ascat", "radar",
+        "synop",
+        "gpssol",
+        "amdar",
+        "geowind",
+        "hrwind",
+        "temp",
+        "wp",
+        "seviri",
+        "amsua",
+        "amsub",
+        "iasi",
+        "ascat",
+        "radar",
     ]
 
     def __init__(self, config):
@@ -67,43 +81,22 @@ class ObsPrep(Task):
         """
         Task.__init__(self, config, __class__.__name__)
         self.basetime = as_datetime(config["general.times.basetime"])
-        self.obs_dir = self.platform.substitute(config["da.obs_dir"])
-        self.da_scratch = self.platform.substitute(config["da.scratch"])
-        self.family = os.environ.get("DA_STREAM", "surface")
-
-        if self.family == "surface":
-            self.obs_types = config.get("da.obs_types_surface", self.DEFAULT_OBS_SURFACE)
-        else:
-            self.obs_types = config.get("da.obs_types_3dvar", self.DEFAULT_OBS_3DVAR)
-
-        self.obs_provider = config.get("da.obs_provider", "None.")
-        all_providers = config.get("da.providers", {})
-
-        if self.obs_provider not in all_providers:
-            logger.warning(
-                "ObsPrep: obs_provider '{}' not defined in da.providers — "
-                "no obs sources will be found; add a [da.providers.{}] block.",
-                self.obs_provider, self.obs_provider,
-            )
-            self._provider = {}
-        else:
-            self._provider = all_providers[self.obs_provider]
-        # New schema: obstypes nested under provider. Old schema: direct keys.
-        self._obstypes = self._provider.get("obstypes") or self._provider
-
-        self.bator_window_len = config.get("da.bator_window_len", 180)
-        self.bator_window_shift = config.get("da.bator_window_shift", -90)
-        # obs_step lives in the provider block; fall back to top-level da.obs_step
-        # for backward compatibility, then to 0 (windowing disabled).
-        self.obs_step = self._provider.get("obs_step", config.get("da.obs_step", 0))
+        self.obs_dir = config["platform.obs_dir"]
+        self.da_scratch = self.config["da.scratch"]
+        self.obs = Observations(config)
 
         self.obsoul_merge_script = self.platform.substitute(
-            config.get("da.obsoul_merge_script", "")
+            config.get(
+                "da.obsoul_merge_script",
+                GeneralConstants.PACKAGE_DIRECTORY / "aux" / "obsoul_merge.pl",
+            )
         )
 
         logger.debug(
             "Constructed ObsPrep for family={} obs_provider={} obs_step={}min",
-            self.family, self.obs_provider, self.obs_step,
+            self.obs.family,
+            self.obs.obs_provider,
+            self.obs.obs_step,
         )
 
     def execute(self):
@@ -114,100 +107,95 @@ class ObsPrep(Task):
         into the working directory. Writes ``obstypes_YYYYMMDDRR`` with the
         list of successfully staged types — used by the Bator tasks.
         """
-        yyyy = self.basetime.strftime("%Y")
-        mm = self.basetime.strftime("%m")
-        dd = self.basetime.strftime("%d")
-        rr = self.basetime.strftime("%H")
-        ymdrr = f"{yyyy}{mm}{dd}{rr}"
+        ymdhh = self.basetime.strftime("%Y%m%d%H")
 
         available_types = []
 
-        for obstype in self.obs_types:
-            staged = self._stage_obstype(obstype, ymdrr)
+        for obstype in self.obs.obs_types:
+            staged = self._stage_obstype(obstype)
             if staged:
                 available_types.append(obstype)
             else:
                 logger.warning(
-                    "ObsPrep: obs type '{}' not available for {}", obstype, ymdrr
+                    "ObsPrep: obs type '{}' not available for {}", obstype, ymdhh
                 )
 
         if not available_types:
             raise RuntimeError(
-                f"ObsPrep: no observation types were available for {ymdrr}. "
-                "Cannot proceed with assimilation."
+                f"ObsPrep: no observation types were available for {ymdhh}"
+                f"\nin {self.platform.substitute(self.obs_dir)}."
+                "\nCannot proceed with assimilation."
             )
 
-        obstypes_file = f"obstypes_{ymdrr}"
+        obstypes_file = f"obstypes_{ymdhh}"
         with open(obstypes_file, "w") as fh:
             fh.write("\n".join(available_types) + "\n")
+        out_dir = os.path.join(
+            self.platform.substitute(self.da_scratch), f"{self.obs.family}/obsprep"
+        )
+        tactusmakedirs(out_dir)
         logger.info(
-            "ObsPrep: available obs types for {}: {} in {}", ymdrr, available_types, self.obs_dir
+            "ObsPrep: available obs types for {}: {} in {}",
+            ymdhh,
+            available_types,
+            out_dir,
         )
 
-        out_dir = os.path.join(self.da_scratch, yyyy, mm, dd, rr, "obsprep")
-        tactusmakedirs(out_dir)
         for f in os.listdir("."):
-            src = os.path.join(self.wdir, f)
-            dst = os.path.join(out_dir, f)
-            if os.path.isfile(src):
-                shutil.copy2(src, dst)
-        logger.info("ObsPrep: staged files archived to {}", out_dir)
+            if f not in ["config.toml"] and os.path.isfile(f):
+                self.fmanager.output(f, out_dir, provider_id="copy")
 
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
-
     def _window_slots(self, obs_step=None):
         """Return list of datetimes covering the assimilation window.
 
-        When ``obs_step`` is 0 only the basetime itself is returned.
+        When ``obs_step`` is PT0H only the basetime itself is returned.
         Otherwise all slot boundaries within the window are returned,
         floored to the nearest ``obs_step`` boundary.
 
         ``obs_step`` defaults to the provider-level value when not given.
         """
         if obs_step is None:
-            obs_step = self.obs_step
-        if obs_step <= 0:
+            obs_step = self.obs.obs_step
+        if obs_step <= as_timedelta("PT0H"):
             return [self.basetime]
 
-        import calendar
-
-        step_sec = obs_step * 60
-        window_start = self.basetime + dt.timedelta(minutes=self.bator_window_shift)
-        window_end = self.basetime + dt.timedelta(
-            minutes=self.bator_window_shift + self.bator_window_len
+        window_start = (
+            self.basetime
+            + self.obs.bator_window_shift
+            - self.obs.bator_window_shift % obs_step
         )
-
-        t_epoch = (
-            int(calendar.timegm(window_start.timetuple()) // step_sec) * step_sec
+        window_end = (
+            self.basetime + self.obs.bator_window_shift + self.obs.bator_window_len
         )
-        end_epoch = calendar.timegm(window_end.timetuple())
 
         slots = []
-        while t_epoch <= end_epoch:
-            slots.append(dt.datetime.utcfromtimestamp(t_epoch))
-            t_epoch += step_sec
+        while window_start <= window_end:
+            slots.append(window_start)
+            window_start += obs_step
+
         return slots
 
     # Maps tactus obstype names to the OBSOUL type code embedded in temp
     # filenames so that obsoul_merge.pl (which splits on '_' and reads field [1])
-    # accepts records of the correct type.  Numeric strings work because
+    # accepts records of the cohhect type.  Numeric strings work because
     # obsoul_merge.pl uses numeric != for the per-record type check.
     # Using the numeric code rather than a source-specific name (e.g. "amdar")
     # lets multiple aircraft sub-types (AMDAR, MODES, EHS …) all be accepted.
     _OBSOUL_MERGE_NAMES = {
-        "amdar": "2",   # OBSOUL type 2 = aircraft
-        "synop": "1",   # OBSOUL type 1 = synop/ship
+        "amdar": "2",  # OBSOUL type 2 = aircraft
+        "synop": "1",  # OBSOUL type 1 = synop/ship
     }
 
-    def _stage_obstype(self, obstype, ymdrr):
+    def _stage_obstype(self, obstype):
         """Collect and merge all obs files for *obstype* across window slots.
 
         Returns True when at least one file was found and merged, False
         otherwise.
         """
-        spec = self._obstypes.get(obstype)
+        spec = self.obs.obstypes.get(obstype)
         if not isinstance(spec, Mapping):
             return False
 
@@ -217,27 +205,30 @@ class ObsPrep(Task):
         if not candidates:
             return False
 
-        # Per-obstype obs_step overrides the provider-level default.
+        # Per-obstype obs_step ovehhides the provider-level default.
         # Set obs_step = 0 in the provider spec for geostationary obs
         # (seviri, geowind, hrwind) to collect only the nominal basetime slot.
-        obs_step = spec.get("obs_step", self.obs_step)
+        try:
+            obs_step = spec["obs_step"]
+            obs_step = as_timedelta(obs_step)
+        except KeyError:
+            obs_step = self.obs.obs_step
 
         collected = []
         for slot in self._window_slots(obs_step):
-            syyyy = slot.strftime("%Y")
-            smm = slot.strftime("%m")
-            sdd = slot.strftime("%d")
-            srr = slot.strftime("%H")
-            slot_ymdrr = f"{syyyy}{smm}{sdd}{srr}"
+            (syyyy, smm, sdd, shh) = split_date(slot)
+            slot_ymdhh = f"{syyyy}{smm}{sdd}{shh}"
             subst = {
-                "ymdrr": slot_ymdrr,
+                "ymdhh": slot_ymdhh,
                 "yyyy": syyyy,
                 "mm": smm,
                 "dd": sdd,
-                "rr": srr,
+                "hh": shh,
             }
-            slot_date_dir = os.path.join(self.obs_dir, syyyy, smm, sdd)
-            src_dir = self.platform.substitute(spec.get("source_dir", slot_date_dir))
+            src_dir = self.platform.substitute(
+                spec.get("source_dir", self.obs_dir),
+                basetime=slot,
+            )
             for cand_tpl in candidates:
                 fname = cand_tpl.format(**subst)
                 path, is_tmp = self._collect_file(os.path.join(src_dir, fname), obstype)
@@ -245,7 +236,9 @@ class ObsPrep(Task):
                     collected.append((path, is_tmp))
                     logger.debug(
                         "ObsPrep: found {} for type {} slot {}",
-                        fname, obstype, slot_ymdrr,
+                        fname,
+                        obstype,
+                        slot_ymdhh,
                     )
 
         if not collected:
@@ -257,10 +250,8 @@ class ObsPrep(Task):
         finally:
             for path, is_tmp in collected:
                 if is_tmp:
-                    try:
+                    with contextlib.suppress(OSError):
                         os.unlink(path)
-                    except OSError:
-                        pass
 
         return True
 
@@ -271,9 +262,10 @@ class ObsPrep(Task):
         a plain path.  Returns (None, False) when the source does not exist
         or is empty.
 
-        When *obstype* has a known mapping in ``_OBSOUL_MERGE_NAMES`` the temp
-        file is given a prefix of the form ``obsoul_<type>_`` so that
-        obsoul_merge.pl can derive the correct OBS type from the filename.
+        When *obstype* has a known mapping in ``_OBSOUL_MERGE_NAMES`` and the
+        basename does not already start with ``obsoul_<type>_``, that prefix is
+        prepended so that obsoul_merge.pl can derive the correct OBS type from
+        the filename.
         """
         if os.path.isfile(src) and os.path.getsize(src) > 0:
             return src, False
@@ -282,11 +274,14 @@ class ObsPrep(Task):
         if os.path.isfile(src_gz) and os.path.getsize(src_gz) > 0:
             import gzip
 
+            base = os.path.basename(src)
             merge_name = self._OBSOUL_MERGE_NAMES.get(obstype) if obstype else None
-            prefix = f"obsoul_{merge_name}_" if merge_name else None
+            if merge_name and not base.startswith(f"obsoul_{merge_name}_"):
+                base = f"obsoul_{merge_name}_{base}"
             tmp = tempfile.NamedTemporaryFile(
-                delete=False, suffix=".obsprep.tmp",
-                **({"prefix": prefix} if prefix else {}),
+                delete=False,
+                prefix=f"{base}.",
+                suffix=".obsprep.tmp",
                 dir=".",
             )
             with gzip.open(src_gz, "rb") as f_gz:
@@ -315,14 +310,11 @@ class ObsPrep(Task):
                 for p in paths:
                     with open(p, "rb") as inp:
                         shutil.copyfileobj(inp, out)
-            logger.info(
-                "ObsPrep: merged {} {} files -> {}", len(paths), fmt, local_name
-            )
+            logger.info("ObsPrep: merged {} {} files -> {}", len(paths), fmt, local_name)
 
         elif fmt == "OBSOUL":
-            merge_ok = (
+            merge_ok = self.obsoul_merge_script and os.path.isfile(
                 self.obsoul_merge_script
-                and os.path.isfile(self.obsoul_merge_script)
             )
             if merge_ok:
                 list_tmp = tempfile.NamedTemporaryFile(
@@ -331,23 +323,22 @@ class ObsPrep(Task):
                 try:
                     list_tmp.write("\n".join(paths) + "\n")
                     list_tmp.close()
-                    subprocess.run(
-                        [
-                            "perl",
-                            self.obsoul_merge_script,
-                            "-o", local_name,
-                            "-f", list_tmp.name,
-                        ],
-                        check=True,
-                    )
+                    cmd = [
+                        "perl",
+                        self.obsoul_merge_script,
+                        "-o",
+                        local_name,
+                        "-f",
+                        list_tmp.name,
+                    ]
+                    subprocess.run(cmd, check=True)
                 finally:
-                    try:
+                    with contextlib.suppress(OSError):
                         os.unlink(list_tmp.name)
-                    except OSError:
-                        pass
                 logger.info(
                     "ObsPrep: merged {} OBSOUL files -> {} via obsoul_merge.pl",
-                    len(paths), local_name,
+                    len(paths),
+                    local_name,
                 )
             else:
                 raise RuntimeError(
@@ -362,5 +353,7 @@ class ObsPrep(Task):
                 logger.warning(
                     "ObsPrep: cannot merge {} files of format '{}' for type '{}'; "
                     "using first file only.",
-                    len(paths), fmt, obstype,
+                    len(paths),
+                    fmt,
+                    obstype,
                 )
