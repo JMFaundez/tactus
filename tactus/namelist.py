@@ -337,11 +337,7 @@ class NamelistGenerator:
         """Construct the generator.
 
         Args:
-<<<<<<< HEAD
-            config (tactus.ParsedConfig): Configuration
-=======
             config (ParsedConfig): Configuration
->>>>>>> origin/develop
             kind (str): namelist kind, e.g. 'master', 'surfex', or any DA task
                 such as 'bator'.  The corresponding files
                 ``<cycle>/assemble_<kind>.yml`` and

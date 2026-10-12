@@ -349,11 +349,6 @@ class TaskSettings(object):
                     "TACTUS_HOME",
                     "KEEP_WORKDIRS",
                     "MEMBER",
-<<<<<<< HEAD
-                    "OBSTYPE",
-                    "DA_STREAM",
-=======
->>>>>>> origin/develop
                     "TACTUS_TASK",
                 ]
                 for ecf_var in ecf_vars:
