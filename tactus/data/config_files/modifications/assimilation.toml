@@ -24,11 +24,17 @@ assimilation_input_definition = "@CYCLE@/assimilation.json"
 # ------------------------------------------------------------------
 # DA section — paths and tuning
 # ------------------------------------------------------------------
+[platform]
+  # Root directory of pre-processed observation files, read by ObsPrep as
+  # `platform.obs_dir` (obsprep.py:84). The date path is part of the template:
+  # obsprep.py substitutes it verbatim and does NOT append YYYY/MM/DD itself,
+  # so leaving it off makes every obs type "not available".
+  # Layout on disk: <obs_dir>/<obstype_filename>[.gz]
+  obs_dir = "/scratch/sis/da/obs/@YYYY@/@MM@/@DD@"
+
 [da]
-  # Root directory for pre-processed observation files (OPLACE / local)
-  # Expected layout: <obs_dir>/YYYY/MM/DD/<obstype_filename>[.gz]
-  # obs_dir = "@SCRATCH@/da/@CASE@/obs"
-  obs_dir = "/scratch/sis/da/obs/"
+  # NB: obs_dir belongs under [platform] above. `da.obs_dir` is dead — nothing
+  # in the code reads it (grep: only platform.obs_dir is used).
 
   # Per-cycle scratch store for intermediate DA files (ODB, CCMA, analyses)
   scratch = "@SCRATCH@/@CASE@/da"

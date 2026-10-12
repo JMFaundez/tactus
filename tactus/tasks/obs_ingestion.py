@@ -339,11 +339,24 @@ class OdbIngestionTask(Task):
         def _tf(v):
             return ".T." if v else ".F."
 
-        # LVAR picks the VAR vs CANARI branch in ObsConvertTools.F90. The
-        # Z_CANZONE halo (observations up to canzone km OUTSIDE the domain) is
-        # applied only under `IF (.NOT. LVAR)`, because the surface OI wants
-        # observations beyond the boundary; the upper-air screening does not.
-        lvar = self.obs.family != "surface"
+        # LVAR picks the VAR vs CANARI branch in ObsConvertTools.F90. Under
+        # `IF (.NOT. LVAR)` BATOR additionally selects observations up to
+        # Z_CANZONE km OUTSIDE the domain ("Obs around C+I for CANARI"), which
+        # the surface OI is designed to use.
+        #
+        # OFF BY DEFAULT, because the rest of this chain cannot place them:
+        # obatabs.F90 assigns trlat/trlon only to observations inside C+I, so
+        # halo observations reach MKGLOBSTAB_MODEL with lat=lon=0 and abort it
+        # with "IWRONG1 NE 0". Enable deliberately with
+        #     [da.surface]
+        #       canari_halo = true
+        # once the downstream side can handle unplaced observations.
+        # Only ever applies to the surface stream; upper-air screening is
+        # always the VAR branch (LVAR=.T.).
+        halo = self.obs.family == "surface" and self.config.get(
+            f"da.{self.obs.family}.canari_halo", False
+        )
+        lvar = not halo
 
         with open("NAM_lamflag", "w") as fh:
             fh.write("&NAMFCNT\n")

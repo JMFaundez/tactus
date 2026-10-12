@@ -1,0 +1,166 @@
+#  DA setup: sections that must be applied as a MODIFICATION, not an include.
+#  Includes are merged with dict.update() (config_parser.py:715) so a partial
+#  table REPLACES the base's; modifications use deep_update (experiment.py:184)
+#  and merge key-by-key. [suite_control]/[submission]/[platform] therefore
+#  belong here - putting them in include/da.toml silently wiped config.toml's
+#  [suite_control] (losing create_static_data and 17 other keys).
+
+[suite_control]
+do_assimilation = true
+
+#  assimilation.toml overrode config.toml's "cold_start". Read by
+#  initial_conditions.py:31 (first-guess resolution) and
+#  tactus_suite_components.py:790,880 (suite structure).
+mode = "start"
+[system]
+assimilation_input_definition = "@CYCLE@/assimilation.json"
+
+[platform]
+#  obsprep.py substitutes this verbatim - it does NOT append YYYY/MM/DD,
+#  and there is no hour subdirectory on disk.
+obs_dir = "/scratch/sis/da/obs/@YYYY@/@MM@/@DD@"
+
+[submission]
+bindir = "/ec/res4/scratch/sis/install/pr/intel/bin/"
+precision = "R64"
+
+[submission.task_exceptions.ObsPrep]
+  NPROC = 1
+
+[submission.task_exceptions.ObsPrep.BATCH]
+  NTASKS   = "#SBATCH --ntasks=1"
+  WALLTIME = "#SBATCH --time=00:20:00"
+
+# ---- BATOR (one task per obs type, serial per type) ----
+# BATOR is NOT yet built by the IAL CMake pipeline (which only produces MASTERODB).
+# It comes from a separate ARPEGE/ALADIN ODB compilation.
+# Point to the directory that contains BATOR, BLENDSUR,
+# shuffle, create_ioassign, ioassign, and merge_ioassign.
+[submission.task_exceptions.Bator]
+  bindir = "/perm/sis/tactus_bin/@CYCLE@/@COMPILER@/@PRECISION@/bin_gmkpack"
+  NPROC  = 1
+
+[submission.task_exceptions.Bator.BATCH]
+  NTASKS   = "#SBATCH --ntasks=1"
+  WALLTIME = "#SBATCH --time=00:10:00"
+
+[submission.task_exceptions.Bator.MODULES]
+  01_INTEL = ["load", "intel/2023.2.0"]
+
+[submission.task_exceptions.Bator.ENV]
+  DR_HOOK_ASSERT_MPI_INITIALIZED = "0"
+
+[submission.task_exceptions.Obsconvert]
+  NPROC = 1
+
+[submission.task_exceptions.Obsconvert.BATCH]
+  NTASKS = "#SBATCH --ntasks=1"
+  WALLTIME = "#SBATCH --time=00:10:00"
+
+[submission.task_exceptions.Obsconvert.ENV]
+  DR_HOOK_ASSERT_MPI_INITIALIZED = "0"
+
+[submission.task_exceptions.Obsconvert.MODULES]
+  01_INTEL = ["load", "intel/2023.2.0"]
+  OPENMPI = ["load", "openmpi/4.1.1.1"]
+
+# ---- OdbMerge (shuffle + merge_ioassign) ----
+[submission.task_exceptions.OdbMerge]
+  NPROC  = 1
+
+[submission.task_exceptions.OdbMerge.BATCH]
+  NTASKS   = "#SBATCH --ntasks=1"
+  WALLTIME = "#SBATCH --time=00:15:00"
+
+[submission.task_exceptions.OdbMerge.MODULES]
+  01_INTEL = ["load", "intel/2023.2.0"]
+
+# ---- Canari (MASTERODB conf 701, surface OI) ----
+[submission.task_exceptions.Canari]
+  NPROC  = 1
+
+[submission.task_exceptions.Canari.BATCH]
+  NODES    = "#SBATCH --nodes=1"
+  NTASKS   = "#SBATCH --ntasks=1"
+  WALLTIME = "#SBATCH --time=00:30:00"
+  QOS = "#SBATCH --qos=np"
+  MEM = "#SBATCH --mem=120000MB"
+
+[submission.task_exceptions.Canari.MODULES]
+  01_INTEL = ["load", "intel/2021.4.0"]
+  OPENMPI = ["load", "hpcx-openmpi/2.9.0"]
+
+# ---- BlendSur (serial BLENDSUR utility) ----
+[submission.task_exceptions.BlendSur]
+  bindir = "/perm/sis/tactus_bin/@CYCLE@/@COMPILER@/@PRECISION@/bin_gmkpack"
+  binary = "BLENDSUR"
+  NPROC  = 1
+
+[submission.task_exceptions.BlendSur.BATCH]
+  NTASKS   = "#SBATCH --ntasks=1"
+  WALLTIME = "#SBATCH --time=00:10:00"
+
+[submission.task_exceptions.BlendSur.MODULES]
+  01_INTEL = ["load", "intel/2023.2.0"]
+
+# ------------------------------------------------------------------
+# Surface-only DA mode
+# ------------------------------------------------------------------
+# By default both surface OI (CANARI) and upper-air 3D-Var (OOVAR) are run.
+# Set da.do_upper_air = false to run the surface chain only (CANARI +
+# BlendSur) without the UpperAir family.  Useful for refining the CANARI
+# chain independently or for surface-analysis-only experiments.
+#
+# do_upper_air = false
+
+# ------------------------------------------------------------------
+# OOPS-based 3D-Var (upper-air analysis via OOVAR)
+# ------------------------------------------------------------------
+
+[submission.task_exceptions.OopsVar]
+  NPROC  = 128
+  WRAPPER = "srun -n @NPROC@"
+
+[submission.task_exceptions.OopsVar.BATCH]
+  NODES       = "#SBATCH --nodes=10"
+  NTASKS      = "#SBATCH --ntasks=128"
+  QOS         = "#SBATCH --qos=np"
+  HINT        = "#SBATCH --hint=nomultithread"
+  WALLTIME    = "#SBATCH --time=01:00:00"
+
+[submission.task_exceptions.OopsVar.ENV]
+  ECKIT_MPI_FORCE = "parallel"
+
+[submission.task_exceptions.OopsVar.MODULES]
+  01_INTEL = ["load", "intel/2021.4.0"]
+
+# ---- Screen (MASTERODB observational screening, OpenMP) ----
+[submission.task_exceptions.Screen]
+  bindir = "@INSTALL_DIR@/@CYCLE@/@COMPILER@/@PRECISION@/@IAL_VERSION@/bin"
+  NPROC  = 128
+
+[submission.task_exceptions.Screen.BATCH]
+  NODES       = "#SBATCH --nodes=6"
+  NTASKS      = "#SBATCH --ntasks=128"
+  CPUSPERTASK = "#SBATCH --cpus-per-task=2"
+  MEM         = "#SBATCH --mem=200GB"
+  WALLTIME    = "#SBATCH --time=00:30:00"
+
+[submission.task_exceptions.Screen.ENV]
+  OMP_NUM_THREADS = "2"
+  OMP_PLACES      = "threads"
+
+# ---- Minim (MASTERODB 3D-Var minimization, OpenMP) ----
+[submission.task_exceptions.Minim]
+  bindir = "@INSTALL_DIR@/@CYCLE@/@COMPILER@/@PRECISION@/@IAL_VERSION@/bin"
+  NPROC  = 128
+
+[submission.task_exceptions.Minim.BATCH]
+  NODES       = "#SBATCH --nodes=16"
+  NTASKS      = "#SBATCH --ntasks-per-node=16"
+  CPUSPERTASK = "#SBATCH --cpus-per-task=8"
+  WALLTIME    = "#SBATCH --time=00:45:00"
+
+[submission.task_exceptions.Minim.ENV]
+  OMP_NUM_THREADS = "8"
+  OMP_PLACES      = "threads"
