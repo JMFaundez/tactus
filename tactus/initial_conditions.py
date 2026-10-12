@@ -38,6 +38,7 @@ class InitialConditions(object):
             "Forecast": self.forecast,
             "Pertana": self.pertana,
             "Pertsurf": self.pertsurf,
+            "Canari": self.canari,
         }
 
     def success(self, task, types):
@@ -127,6 +128,16 @@ class InitialConditions(object):
             self.source_sfx = self.platform.substitute(
                 f"@ARCHIVE@/{self.config['file_templates.pertsurf.archive']}"
             )
+        return self.source, self.source_sfx
+
+    def canari(self):
+        """Find initial files for the Canari task.
+
+        The surface analysis background is the plain first guess (previous
+        cycle forecast, or the interpolated boundaries on a cold start).  The
+        perturbed files used by Forecast are deliberately not applied here:
+        they are analysis-time perturbations, not a background.
+        """
         return self.source, self.source_sfx
 
     def pertana(self):
