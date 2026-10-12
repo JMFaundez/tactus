@@ -113,9 +113,10 @@ class Canari(Task):
             m2 = 1
         mm2 = f"{m2:02d}"
 
-        odb_archive_dir = os.path.join(
-            self.da_scratch, yyyy, mm, dd, rr, "odbmerge_surface"
-        )
+        # da.scratch already ends in @YYYY@/@MM@/@DD@/@HH@/@MEMBER_STR@, so the
+        # date must not be appended again; OdbMerge archives to
+        # <da.scratch>/<da_stream>/odbmerge (see odbmerge.py archive_subdir).
+        odb_archive_dir = os.path.join(self.da_scratch, "surface", "odbmerge")
 
         # --- binary ---
         masterodb_bin = self.get_binary("MASTERODB")
@@ -313,7 +314,7 @@ class Canari(Task):
             raise RuntimeError(f"Canari: {output_file} not produced or empty.")
 
         # --- archive output ---
-        out_dir = os.path.join(self.da_scratch, yyyy, mm, dd, rr, "canari")
+        out_dir = os.path.join(self.da_scratch, "canari")
         tactusmakedirs(out_dir)
         shutil.copy2(output_file, os.path.join(out_dir, output_file))
         if os.path.isfile("ICMSHANAL+0000.sfx"):

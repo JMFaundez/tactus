@@ -46,7 +46,7 @@ class BlendSur(Task):
         rr = self.basetime.strftime("%H")
         ymdrr = f"{yyyy}{mm}{dd}{rr}"
 
-        canari_dir = os.path.join(self.da_scratch, yyyy, mm, dd, rr, "canari")
+        canari_dir = os.path.join(self.da_scratch, "canari")
 
         # --- inputs ---
         # LBC +000 file
@@ -116,7 +116,7 @@ class BlendSur(Task):
         os.rename("AL_A", surface_out)
 
         # --- archive ---
-        out_dir = os.path.join(self.da_scratch, yyyy, mm, dd, rr, "blendsur")
+        out_dir = os.path.join(self.da_scratch, "blendsur")
         tactusmakedirs(out_dir)
         shutil.copy2(surface_out, os.path.join(out_dir, surface_out))
         logger.info("BlendSur: blended surface field archived to {}", out_dir)

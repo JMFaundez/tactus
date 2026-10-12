@@ -110,7 +110,7 @@ class OopsVar(Task):
 
         # --- first guess: blended surface analysis from BlendSur ---
         blendsur_file = os.path.join(
-            self.da_scratch, yyyy, mm, dd, rr, "blendsur", "ICMSHANAL+0000_updated_surface"
+            self.da_scratch, "blendsur", "ICMSHANAL+0000_updated_surface"
         )
         if not os.path.isfile(blendsur_file):
             raise FileNotFoundError(
