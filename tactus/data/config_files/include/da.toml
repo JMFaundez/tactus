@@ -1,18 +1,10 @@
 [da]
   scratch = "@CASEDIR@/da/@YYYY@/@MM@/@DD@/@HH@/@MEMBER_STR@"
   obs_provider = "LACE"
+  # Constants for Canari and OopsVar
   const_dir = "/perm/sis/da/const"
-  analysis_dir = "@SCRATCH@/da/@CASE@/analysis"
-  varbc_dir = "@SCRATCH@/da/@CASE@/varbc"
+  rttov_coef_dir = "@DA.CONST_DIR@/rttov"
   varbc_init_dir = "/perm/sis/da/varbc_init"
-  rttov_coef_dir = "/perm/sis/da/const/rttov"
-  oovar_input_definition = "CY50t2/oovar_input_definition.json"
-  nbpool = 16
-  bator_window_len = 180   # window length [minutes], symmetric around analysis time
-  bator_window_shift = -90   # window start offset [minutes] (negative = before)
-  bator_slot_len = 0     # slot length [minutes]; 0 = single slot
-  bator_nbslot = 1     # number of BATOR time slots
-  gpssol_stations = []
 
 [da.surface]
   method = "CANARI"
@@ -24,15 +16,15 @@
   bator_slot_len = "PT0H"
   bator_nbslot = 1
   nbpool = 16
+  # Also select observations up to bator_canzone km outside the domain
+  # (BATOR's .NOT.LVAR branch). Keep false: obatabs.F90 places observations
+  # only inside C+I, so halo observations reach MKGLOBSTAB_MODEL with
+  # lat=lon=0 and abort it with 'IWRONG1 NE 0'.
+  canari_halo = false
 
-#  Select observations up to bator_canzone km OUTSIDE the domain for the
-#  surface OI (BATOR's .NOT.LVAR branch). Keep false unless the downstream
-#  chain can place them: obatabs.F90 assigns trlat/trlon only inside C+I,
-#  so halo obs reach MKGLOBSTAB_MODEL with lat=lon=0 -> 'IWRONG1 NE 0'.
-canari_halo = false
 [da.upper_air]
   method = "3DVAR"
-  active = true
+  active = false
   odbconverter = "Obsconvert"
   obs_types = [
     "synop",
@@ -207,16 +199,3 @@ canari_halo = false
 
 [da.providers.MARS]
   # Add ECMWF MARS observation types below
- [da.oops]
-#
-#   # Number of ODB pools for the upper-air 3D-Var (OOVAR).
-#   # Canari uses da.nbpool (default 16); OopsVar uses this key.
-   nbpool = 128
-#
-#   # Minimization inner-loop settings
-#   niter    = 66
-#   nsimu    = 69
-#   rednmc   = 0.5
-#
-
-# ---- OopsVar (OOPS-based 3D-Var, single OOVAR call) ----

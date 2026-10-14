@@ -1,0 +1,28 @@
+# Surface OI (Canari, BlendSur) and 3D-Var (OopsVar) on DKCOEXP_648x648_2500m:
+#
+#   tactus case ?tactus/data/config_files/configurations/cy50t2_arome \
+#     tactus/data/config_files/include/domains/DKCOEXP_648x648_2500m.toml \
+#     tactus/data/config_files/include/vertical_levels/harmonie-arome_65.toml \
+#     tactus/data/config_files/modifications/da_oi_3dvar_test.toml
+#
+# 2025-02-09 00 UTC is the cold start (da.bgcycle, no assimilation),
+# 03 UTC is the first cycle with assimilation.
+
+[general.times]
+  start = "2025-02-09T00:00:00Z"
+  end = "2025-02-09T03:00:00Z"
+
+[da]
+  bgcycle = "2025020900"
+
+[da.upper_air]
+  active = true
+
+[platform]
+  obs_dir = "/scratch/sis/da/obs/@YYYY@/@MM@/@DD@"
+
+[submission]
+  bindir = "/ec/res4/scratch/sis/install/pr/intel/bin/"
+
+[suite_control]
+  do_assimilation = true

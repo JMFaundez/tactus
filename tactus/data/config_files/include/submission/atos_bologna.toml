@@ -52,6 +52,19 @@
   KMP_BLOCKTIME = "12"
   OMP_STACKSIZE = "4G"
 
+[submission.task_exceptions.Canari]
+  NPROC = 1
+
+[submission.task_exceptions.Canari.BATCH]
+  MEM = "#SBATCH --mem=120000MB"
+  NODES = "#SBATCH --nodes=1"
+  NTASKS = "#SBATCH --ntasks=1"
+  WALLTIME = "#SBATCH --time=00:30:00"
+
+[submission.task_exceptions.Canari.ENV]
+  # MPI_Finalize crashes in UCX otherwise
+  OMPI_MCA_pml = "ob1"
+
 [submission.task_exceptions.CreateGrib]
   binary = "gl_DP"
 
@@ -115,6 +128,16 @@
   QOS = "#SBATCH --qos=np"
   WALLTIME = "#SBATCH --time=06:00:00"
 
+[submission.task_exceptions.OopsVar]
+  NPROC = 128
+  WRAPPER = "srun -n @NPROC@"
+
+[submission.task_exceptions.OopsVar.BATCH]
+  HINT = "#SBATCH --hint=nomultithread"
+  NODES = "#SBATCH --nodes=10"
+  NTASKS = "#SBATCH --ntasks=128"
+  WALLTIME = "#SBATCH --time=01:00:00"
+
 [submission.task_exceptions.Pgd]
   NPROC = 2
   WRAPPER = "srun -n @NPROC@"
@@ -140,51 +163,6 @@
 
 [submission.task_exceptions.Topography.MODULES]
   GDAL = ["load", "gdal/3.6.2"]
-
-[submission.types.GMKPACK_EXECUTABLES]
-  NPROC = 1
-  NPROC_IO = 0
-  NPROCX = 1
-  NPROCY = 1
-  SCHOST = "hpc"
-  tasks = [
-    "Bator_synop",
-    "Bator_gpssol",
-    "Bator_amdr",
-    "Bator_geowind",
-    "Bator_temp",
-    "Bator_wp",
-    "Bator_seviri",
-    "Bator_amsua",
-    "Bator_amsub",
-    "Bator_iasi",
-    "Bator_ascat",
-    "OdbMerge"
-  ]
-  WRAPPER = "srun"
-
-[submission.types.GMKPACK_EXECUTABLES.BATCH]
-  NAME = "#SBATCH --job-name=@TASK_NAME@"
-  NODES = "#SBATCH --nodes=1"
-  NTASKS = "#SBATCH --ntasks=1"
-  QOS = "#SBATCH --qos=nf"
-  WALLSIGNAL = "#SBATCH --signal=USR1@30"
-  WALLTIME = "#SBATCH --time=00:15:00"
-
-[submission.types.GMKPACK_EXECUTABLES.ENV]
-  DR_HOOK_IGNORE_SIGNALS = -1
-  OMP_NUM_THREADS = 1
-  OMPI_MCA_btl = "^vader"
-
-[submission.types.GMKPACK_EXECUTABLES.MODULES]
-  00_PRGENV = ["load", "prgenv/intel"]
-  01_INTEL = ["load", "intel/2023.2.0"]
-  ECMWFTOOLBOX = ["load", "ecmwf-toolbox/2026.01.0.0"]
-  FFTW = ["load", "fftw/3.3.10"]
-  HDF5 = ["load", "hdf5/1.14.6"]
-  MKL = ["load", "intel-mkl/19.0.5"]
-  NETCDF = ["load", "netcdf4/4.9.3"]
-  OPENMPI = ["load", "openmpi/4.1.1.1"]
 
 [submission.task_exceptions.Addpert]
   binary = "ADDPERT"
@@ -234,7 +212,7 @@
 [submission.types.parallel]
   NPROC = 32
   SCHOST = "hpc"
-  tasks = ["Forecast", "E927", "Pgd", "Prep", "C903", "IALBundleBuild", "OopsVar", "Canari"]
+  tasks = ["Forecast", "E927", "Pgd", "Prep", "C903", "IALBundleBuild", "Canari", "OopsVar"]
   WRAPPER = "srun"
 
 [submission.types.parallel.BATCH]
