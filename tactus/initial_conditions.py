@@ -120,6 +120,7 @@ class InitialConditions(object):
 
     def forecast(self):
         """Find initial files for the Forecast task."""
+        self.analysis()
         if self.config["perturbations.pertana.active"]:
             self.source = self.platform.substitute(
                 f"@ARCHIVE@/{self.config['file_templates.pertana.archive']}"
@@ -129,6 +130,45 @@ class InitialConditions(object):
                 f"@ARCHIVE@/{self.config['file_templates.pertsurf.archive']}"
             )
         return self.source, self.source_sfx
+
+    def analysis(self):
+        """Use this cycle's analysis instead of the first guess, when there is one.
+
+        The upper-air file is the last one the assimilation chain produced:
+        OopsVar, else BlendSur, else Canari. The surface file comes from Canari.
+        Each is a complete model state, as the analyses are written into copies
+        of the first guess. Without an analysis (e.g. the bgcycle) the first
+        guess is kept.
+        """
+        if not self.config["suite_control.do_assimilation"]:
+            return
+        if not self.config.get("da.use_analysis", True):
+            return
+
+        da_scratch = self.platform.substitute(self.config["da.scratch"])
+        candidates = []
+        if self.config.get("da.upper_air.active", False):
+            candidates.append(f"{da_scratch}/upper_air/oopsvar/ICMSHOOPS+0000")
+        candidates += [
+            f"{da_scratch}/surface/blendsur/ICMSHANAL+0000_updated_surface",
+            f"{da_scratch}/surface/canari/ICMSHANAL+0000",
+        ]
+        for candidate in candidates:
+            if os.path.isfile(candidate):
+                logger.info("Using analysis {}", candidate)
+                self.source = candidate
+                break
+        else:
+            logger.warning("No analysis found, using the first guess {}", self.source)
+
+        sfx_analysis = f"{da_scratch}/surface/canari/ICMSHANAL+0000.sfx"
+        if os.path.isfile(sfx_analysis):
+            logger.info("Using surface analysis {}", sfx_analysis)
+            self.source_sfx = sfx_analysis
+        else:
+            logger.warning(
+                "No surface analysis found, using the first guess {}", self.source_sfx
+            )
 
     def canari(self):
         """Find initial files for the Canari task.
