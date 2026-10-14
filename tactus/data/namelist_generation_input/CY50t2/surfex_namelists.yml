@@ -164,6 +164,21 @@ sfx_forecast_AROME:
     XZ0HSN: 0.001
     XZ0SN: 0.01
 
+sfx_canari_oi:
+  NAM_NACVEG:
+    NECHGU: 3
+    XSIGH2MO: 0.1
+    XSIGT2MO: 1.
+    LOBSWG: False
+    LOBS2M: True
+  NAM_ASSIM:
+    LAROME: True
+    NPRINTLEV: 1
+    LAESNM: False
+    # Default .TRUE. melts only WSN_VEG1 of patch 1 (oi_cacsts) even with LAESNM=F,
+    # leaving a zero-mass top layer over snow that crashes SNOW3L at step 0.
+    LRELCLIMSNOW: False
+
 sfx_forecast_AROME_ecoclimap:
   NAM_FRAC:
     LECOSG: False
