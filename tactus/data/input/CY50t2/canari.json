@@ -1,0 +1,24 @@
+{
+  "climate": {
+    "path": "@CLIMDIR@",
+    "files": {
+      "ICMSHANALCLIM": "Const.Clim.@MM@",
+      "ICMSHANALCLI2": "Const.Clim.@MM2@",
+      "Const.Clim.sfx": "Const.Clim@MM@15.sfx"
+    }
+  },
+  "canari_const": {
+    "path": "@DA.CONST_DIR@",
+    "files": {
+      "fort.61": "POLYNOMES_ISBA",
+      "amv_p_and_tracking_error": "amv_p_and_tracking_error"
+    }
+  },
+  "ecoclimap": {
+    "path": "@ECOCLIMAP_BIN_DIR@",
+    "files": [
+      "ecoclimapI_covers_param.bin",
+      "ecoclimapII_eu_covers_param.bin"
+    ]
+  }
+}

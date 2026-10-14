@@ -1,0 +1,24 @@
+blendsur_base:
+  NAMCUMF: {}
+  NAMDYNCORE: {}
+  NAMPAR0: {}
+  NAMSCEN: {}
+  NEMFPEZO: {}
+
+# Step 1: add the LBC SST over sea to the CANARI analysis
+blendsur_add_lbc_sst:
+  NAMBLENDSUR:
+    CL_FNAME1: AL_3D
+    CL_FNAME2: AL_LBC
+    CL_FNAME3: AL_2S
+    ZSIGNL: 0.0
+    ZSIGNS: 1.0
+
+# Step 2: subtract the CANARI SST again (land from CANARI, sea from the LBC)
+blendsur_remove_canari_sst:
+  NAMBLENDSUR:
+    CL_FNAME1: AL_2S
+    CL_FNAME2: AL_3D
+    CL_FNAME3: AL_A
+    ZSIGNL: 0.0
+    ZSIGNS: -1.0
