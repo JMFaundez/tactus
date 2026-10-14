@@ -248,6 +248,7 @@ class TactusBundleBuild(Task):
                     shutil.rmtree(self.local_install_dir)
 
             logger.info("Building bundle sources at {}", self.exp_builddir)
+            batch_job = BatchJob(os.environ)
             nthreads = os.environ.get("OMP_NUM_THREADS")
             batch_job.run(
                 f"cd {self.bundle_dir};  {self.ecbundle_bin} build "

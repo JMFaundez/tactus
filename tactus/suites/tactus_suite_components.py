@@ -28,7 +28,6 @@ from tactus.suites.base import (
 )
 from tactus.suites.da_components import AssimilationFamily
 from tactus.suites.suite_utils import Cycles, lbc_times_generator, slaf_planner
-
 from tactus.toolbox import Platform
 
 
@@ -274,7 +273,6 @@ class StaticDataFamily(EcflowSuiteFamily):
                 ecf_files_remotely=ecf_files_remotely,
                 limit=static_data_limit,
             )
-
 
 
 class StaticDataMemberGenerator:
@@ -1498,9 +1496,7 @@ class CycleFamily(EcflowSuiteFamily):
                 ecf_files,
                 pertana_trigger=interpolation_families,
                 ecf_files_remotely=ecf_files_remotely,
-                cycle_basetime=cycle_basetime,
             )
-            forecast_trigger = assimilation_family
         else:
             perturbation_family = trigger
 
@@ -1563,7 +1559,6 @@ class PostCycleFamily(EcflowSuiteFamily):
                 task_settings,
                 ecf_files,
                 input_template=input_template,
-                
                 ecf_files_remotely=ecf_files_remotely,
             )
             cleaning_triggers.append(archive_hour)
