@@ -27,7 +27,7 @@ _PREDICTORS = {
 
 
 def canari_iprsa():
-    """Return NAMPRE IPRSA as a flat list in Fortran (column-major) order.
+    """Return NAMPRE IPRSA as a flat list in Fortran.
 
     The whole array is written rather than IPRSA(1,5)=39 style element
     assignments, which ifort accepted in the namelist read but did not apply.
@@ -165,13 +165,9 @@ class Canari(Task):
             "CNMEXPB": "CYCL",
             "F_RECLUNIT": "BYTE",
             "F_UFMTENDIAN": "big:10,33,50,54,81",
-            # The poolmask is not needed by CANARI, and creating it crashes on
-            # empty pools (index.body.len = NMDI) left by the ingestion.
             "ODB_ECMA_CREATE_POOLMASK": "0",
             "ODB_ECMA_POOLMASK_FILE": os.path.join(self.wdir, "ECMA", "ECMA.poolmask"),
             "IOASSIGN": "IOASSIGN",
-            # MPI stubs linked into the binary make DrHook believe that MPI
-            # was never initialised.
             "DR_HOOK_ASSERT_MPI_INITIALIZED": "0",
         }
 
