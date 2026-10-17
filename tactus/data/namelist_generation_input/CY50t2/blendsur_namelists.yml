@@ -13,6 +13,9 @@ blendsur_add_lbc_sst:
     CL_FNAME3: AL_2S
     ZSIGNL: 0.0
     ZSIGNS: 1.0
+    # Do not copy the 21 default ISBA "surface constants" from file 2: AL_2S is only an
+    # intermediate (step 2 reads just the blended fields from it).
+    I_NVARC: 0
 
 # Step 2: subtract the CANARI SST again (land from CANARI, sea from the LBC)
 blendsur_remove_canari_sst:
@@ -22,3 +25,6 @@ blendsur_remove_canari_sst:
     CL_FNAME3: AL_A
     ZSIGNL: 0.0
     ZSIGNS: -1.0
+    # AL_A is pre-seeded with the CANARI analysis, so its constants are already right; copying
+    # them from AL_3D would abort on ISBA fields an AROME file lacks (SURFALBEDO.SOLNU, ...).
+    I_NVARC: 0
