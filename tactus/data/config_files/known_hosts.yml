@@ -6,8 +6,7 @@ freja:
   env:
     SNIC_RESOURCE: "freja"
 linda:
-  env:
-    SMHI_DIST: "linda\\d+"
+  hostname: ".*.ad.smhi.se"
 leonardo:
   hostname: ".*leonardo.*"
 belenos:

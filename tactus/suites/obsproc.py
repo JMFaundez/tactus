@@ -2,9 +2,11 @@
 
 from pathlib import Path
 
+from tactus.datetime_utils import as_datetime, oi2dt_list
 from tactus.os_utils import tactusmakedirs
-from tactus.suites.base import EcflowSuiteTask, SuiteDefinition
+from tactus.suites.base import EcflowSuiteFamily, EcflowSuiteTask, SuiteDefinition
 from tactus.suites.da_components import ObservationFamily
+from tactus.logs import logger
 
 
 class ObsprocSuiteDefinition(SuiteDefinition):
@@ -48,19 +50,42 @@ class ObsprocSuiteDefinition(SuiteDefinition):
         )
 
         obs_trigger = []
-        for da_stream in ("surface", "upper_air"):
-            if config.get(f"da.{da_stream}.active", False):
-                obs_family = ObservationFamily(
-                    self.suite,
-                    config,
-                    self.task_settings,
-                    input_template,
-                    self.ecf_files,
-                    trigger=prep_run,
-                    da_stream=da_stream,
-                    ecf_files_remotely=self.ecf_files_remotely,
-                )
-                obs_trigger.append(obs_family)
+        config_basetime = as_datetime(config["general.times.basetime"])
+        dt_list = oi2dt_list(
+            config["general.output_settings.history"],
+            config["general.times.forecast_range"],
+        )
+
+        logger.info(config_basetime)
+        for dt in dt_list:
+            logger.info(dt)
+            basetime = config_basetime + dt
+            basetime_str = basetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+            time_variables = {
+                "BASETIME": basetime_str,
+                "VALIDTIME": basetime_str,
+            }
+
+            date_family = EcflowSuiteFamily(
+                format_time(basetime_str),
+                self.suite,
+                self.ecf_files,
+                variables=time_variables,
+                ecf_files_remotely=self.ecf_files_remotely,
+            )
+            for da_stream in ("surface", "upper_air"):
+                if config.get(f"da.{da_stream}.active", False):
+                    obs_family = ObservationFamily(
+                        date_family,
+                        config,
+                        self.task_settings,
+                        input_template,
+                        self.ecf_files,
+                        trigger=prep_run,
+                        da_stream=da_stream,
+                        ecf_files_remotely=self.ecf_files_remotely,
+                    )
+                    obs_trigger.append(obs_family)
 
         if config["suite_control.do_cleaning"]:
             EcflowSuiteTask(
@@ -77,3 +102,8 @@ class ObsprocSuiteDefinition(SuiteDefinition):
                 },
                 ecf_files_remotely=self.ecf_files_remotely,
             )
+
+def format_time(t):
+    return t.replace("+00:00", "Z").replace("-", "").replace(":", "_")
+
+
