@@ -11,13 +11,18 @@
 [da.upper_air]
   active = true
   odbconverter = "Obsconvert"
+  bator_window_len = "PT1H"
+  bator_window_shift = "-PT30M"
 
 [platform]
   obs_dir = "/scratch/sis/da/obs/@YYYY@/@MM@/@DD@"
 
 [submission]
-  bindir = "/ec/project/accord/IAL/CY50t2/obsproc/R64/bin"
-  bindir_gl = "@SUBMISSION.BINDIR@"
+  #bindir = "/ec/project/accord/IAL/CY50t2/obsproc/R64/bin"
+  #bindir_gl = "@SUBMISSION.BINDIR@"
+  bindir = "/ec/res4/scratch/sis/install/pr/intel/bin/"
+  precision = "R64"
+
 
 [submission.task_exceptions.Forecast]
   bindir = "@SUBMISSION.BINDIR@"

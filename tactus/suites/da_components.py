@@ -157,7 +157,7 @@ class ObservationFamily(EcflowSuiteFamily):
         obs_types = config.get(f"da.{da_stream}.obs_types")
         odb_task = config.get(f"da.{da_stream}.odbconverter")
 
-        obsprep = EcflowSuiteTask(
+        self.obsprep = EcflowSuiteTask(
             "ObsPrep",
             self,
             config,
@@ -168,7 +168,7 @@ class ObservationFamily(EcflowSuiteFamily):
             ecf_files_remotely=ecf_files_remotely,
         )
 
-        OdbFamily(
+        self.odb_family = OdbFamily(
             self,
             config,
             task_settings,
@@ -178,7 +178,7 @@ class ObservationFamily(EcflowSuiteFamily):
             task_class=odb_task,
             da_stream=da_stream,
             family_name="Odb",
-            trigger=obsprep,
+            trigger=self.obsprep,
             ecf_files_remotely=ecf_files_remotely,
         )
 

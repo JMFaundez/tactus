@@ -85,6 +85,17 @@ class ObsprocSuiteDefinition(SuiteDefinition):
                         da_stream=da_stream,
                         ecf_files_remotely=self.ecf_files_remotely,
                     )
+                    # OOPS Var: a single OOVAR call handles screening + minimization.
+                    EcflowSuiteTask(
+                        "OopsVar",
+                        obs_family,
+                        config,
+                        self.task_settings,
+                        self.ecf_files,
+                        input_template=input_template,
+                        trigger=obs_family.odb_family,
+                        ecf_files_remotely=self.ecf_files_remotely,
+                    )
                     obs_trigger.append(obs_family)
 
         if config["suite_control.do_cleaning"]:
@@ -103,7 +114,6 @@ class ObsprocSuiteDefinition(SuiteDefinition):
                 ecf_files_remotely=self.ecf_files_remotely,
             )
 
+
 def format_time(t):
     return t.replace("+00:00", "Z").replace("-", "").replace(":", "_")
-
-
