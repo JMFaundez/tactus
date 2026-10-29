@@ -1,0 +1,7 @@
+blendsur_step1:
+  - blendsur_base
+  - blendsur_add_lbc_sst
+
+blendsur_step2:
+  - blendsur_base
+  - blendsur_remove_canari_sst

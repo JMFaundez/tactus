@@ -296,10 +296,15 @@ class OdbIngestionTask(Task):
         xdx = float(self.config["domain.xdx"])
         xdy = float(self.config["domain.xdy"])
 
+        # NB: test for "unset", not truthiness. xlon0 = 0.0 (Greenwich) is a
+        # valid reference longitude but is falsy in Python, so `if lon0_raw else
+        # lonc` silently substituted the domain centre: NAM_lamflag then carried
+        # EFLON0=9.9 while the model's geometry used ELON0=0.0, and the two
+        # disagreed about where an observation sits on the grid.
         lat0_raw = self.config.get("domain.xlat0", "")
         lon0_raw = self.config.get("domain.xlon0", "")
-        lat0 = float(lat0_raw) if lat0_raw else latc
-        lon0 = float(lon0_raw) if lon0_raw else lonc
+        lat0 = float(lat0_raw) if lat0_raw != "" and lat0_raw is not None else latc
+        lon0 = float(lon0_raw) if lon0_raw != "" and lon0_raw is not None else lonc
 
         redzone = float(self.config.get("da.bator_redzone", 50.0))
         canzone = float(self.config.get("da.bator_canzone", 1500.0))
@@ -334,6 +339,25 @@ class OdbIngestionTask(Task):
         def _tf(v):
             return ".T." if v else ".F."
 
+        # LVAR picks the VAR vs CANARI branch in ObsConvertTools.F90. Under
+        # `IF (.NOT. LVAR)` BATOR additionally selects observations up to
+        # Z_CANZONE km OUTSIDE the domain ("Obs around C+I for CANARI"), which
+        # the surface OI is designed to use.
+        #
+        # OFF BY DEFAULT, because the rest of this chain cannot place them:
+        # obatabs.F90 assigns trlat/trlon only to observations inside C+I, so
+        # halo observations reach MKGLOBSTAB_MODEL with lat=lon=0 and abort it
+        # with "IWRONG1 NE 0". Enable deliberately with
+        #     [da.surface]
+        #       canari_halo = true
+        # once the downstream side can handle unplaced observations.
+        # Only ever applies to the surface stream; upper-air screening is
+        # always the VAR branch (LVAR=.T.).
+        halo = self.obs.family == "surface" and self.config.get(
+            f"da.{self.obs.family}.canari_halo", False
+        )
+        lvar = not halo
+
         with open("NAM_lamflag", "w") as fh:
             fh.write("&NAMFCNT\n")
             fh.write("  LOBSONLY=.F.,\n")
@@ -348,7 +372,7 @@ class OdbIngestionTask(Task):
             fh.write(f"  EFLON1={lon1:.13G},\n")
             fh.write(f"  EFLONC={lonc:.13G},\n")
             fh.write("  LNEWGEOM=.T.,\n")
-            fh.write("  LVAR=.T.,\n")
+            fh.write(f"  LVAR={_tf(lvar)},\n")
             fh.write("  NFDGUN=1,\n")
             fh.write(f"  NFDGUX={nlat},\n")
             fh.write("  NFDLUN=1,\n")

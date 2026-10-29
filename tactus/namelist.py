@@ -108,7 +108,9 @@ def write_namelist(nml, output_file):
         output_file (str) : namelist file name
 
     """
-    if isinstance(nml, dict):
+    # f90nml.Namelist is itself a dict; rewrapping it would drop its
+    # formatting settings (e.g. repeat_counter)
+    if not isinstance(nml, f90nml.Namelist):
         nml = f90nml.Namelist(nml)
     # Write result.
     nml.uppercase = True

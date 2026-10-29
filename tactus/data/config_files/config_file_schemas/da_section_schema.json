@@ -21,6 +21,26 @@
       "type": "string",
       "default": "@CASEDIR@/da/@YYYY@/@MM@/@DD@/@HH@/@MEMBER_STR@"
     },
+    "bgcycle": {
+      "description": "Cold-start cycle (YYYYMMDDHH). The Assimilation family is skipped for it and OopsVar may run without VarBC.",
+      "type": "string"
+    },
+    "const_dir": {
+      "description": "Constants for Canari and OopsVar: POLYNOMES_ISBA, error statistics, <domain>/stabal96.* B-matrix, ir_atlas/.",
+      "type": "string"
+    },
+    "rttov_coef_dir": {
+      "description": "RTTOV coefficient files for OopsVar.",
+      "type": "string"
+    },
+    "varbc_init_dir": {
+      "description": "VARBC.cycle_<HH> files used by OopsVar when the previous day has no VarBC.",
+      "type": "string"
+    },
+    "use_analysis": {
+      "description": "If true (default), the Forecast starts from this cycle's analysis when do_assimilation is set.",
+      "type": "boolean"
+    },
     "surface": {
       "type": "object",
       "properties": {

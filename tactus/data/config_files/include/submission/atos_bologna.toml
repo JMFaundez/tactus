@@ -52,6 +52,19 @@
   KMP_BLOCKTIME = "12"
   OMP_STACKSIZE = "4G"
 
+[submission.task_exceptions.Canari]
+  NPROC = 1
+
+[submission.task_exceptions.Canari.BATCH]
+  MEM = "#SBATCH --mem=120000MB"
+  NODES = "#SBATCH --nodes=1"
+  NTASKS = "#SBATCH --ntasks=1"
+  WALLTIME = "#SBATCH --time=00:30:00"
+
+[submission.task_exceptions.Canari.ENV]
+  # MPI_Finalize crashes in UCX otherwise
+  OMPI_MCA_pml = "ob1"
+
 [submission.task_exceptions.CreateGrib]
   binary = "gl_DP"
 
@@ -114,6 +127,16 @@
   NTASKS = "#SBATCH --ntasks=1"
   QOS = "#SBATCH --qos=np"
   WALLTIME = "#SBATCH --time=06:00:00"
+
+[submission.task_exceptions.OopsVar]
+  NPROC = 128
+  WRAPPER = "srun -n @NPROC@"
+
+[submission.task_exceptions.OopsVar.BATCH]
+  HINT = "#SBATCH --hint=nomultithread"
+  NODES = "#SBATCH --nodes=10"
+  NTASKS = "#SBATCH --ntasks=128"
+  WALLTIME = "#SBATCH --time=01:00:00"
 
 [submission.task_exceptions.Pgd]
   NPROC = 2
@@ -189,7 +212,7 @@
 [submission.types.parallel]
   NPROC = 32
   SCHOST = "hpc"
-  tasks = ["Forecast", "E927", "Pgd", "Prep", "C903", "IALBundleBuild"]
+  tasks = ["Forecast", "E927", "Pgd", "Prep", "C903", "IALBundleBuild", "Canari", "OopsVar"]
   WRAPPER = "srun"
 
 [submission.types.parallel.BATCH]

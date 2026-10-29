@@ -16,6 +16,30 @@ from .base import Task
 from .batch import BatchJob
 
 
+def _has_observations(ecma_dir):
+    """True if any pool of *ecma_dir* holds a non-empty `hdr` table file.
+
+    An ODB pool directory contains one file per table. When BATOR produces an
+    empty database the pools carry only `desc` and `timeslot_index`, with no
+    `hdr` at all — that is the condition this detects.
+
+    Args:
+        ecma_dir (str): Path to an ECMA.<obstype> subbase directory.
+
+    Returns:
+        bool: True if at least one pool has observation headers.
+
+    """
+    with os.scandir(ecma_dir) as entries:
+        for entry in entries:
+            if not entry.is_dir():
+                continue
+            hdr = os.path.join(entry.path, "hdr")
+            if os.path.isfile(hdr) and os.path.getsize(hdr) > 0:
+                return True
+    return False
+
+
 class OdbMerge(Task):
     """Merge all successfully completed BATOR subbases into one ECMA ODB.
 
@@ -71,6 +95,21 @@ class OdbMerge(Task):
                     if not os.path.isfile(os.path.join(ecma_src, "ECMA.dd")):
                         logger.info(
                             "OdbMerge: skipping empty subbase {} (no ECMA.dd)", obstype
+                        )
+                        continue
+                    # ECMA.dd alone is NOT a data-presence test: BATOR writes the
+                    # data-definition file even when every report was rejected,
+                    # leaving pools that hold only `desc` + `timeslot_index`.
+                    # Merging one yields pools whose `hdr` table has no backing
+                    # file, so `hdr.obstype` reads as NMDI/uninitialised memory
+                    # and rd_obs_boxes.F90 aborts the screening with
+                    # "GETDB(POSTPROC_OBS_BOXES): Some timeslot/obstype out of
+                    # range". Require a non-empty `hdr` in at least one pool.
+                    if not _has_observations(ecma_src):
+                        logger.warning(
+                            "OdbMerge: skipping subbase {} — no hdr rows in any "
+                            "pool (BATOR rejected every report; check its log)",
+                            obstype,
                         )
                         continue
                     if not os.path.isdir(f"ECMA.{obstype}"):

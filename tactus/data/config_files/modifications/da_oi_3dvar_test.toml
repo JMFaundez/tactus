@@ -1,0 +1,37 @@
+[general.times]
+  start = "2025-02-09T00:00:00Z"
+  end = "2025-02-09T03:00:00Z"
+  cycle_length = "PT3H"
+  forecast_range = "PT3H"
+
+[da]
+  bgcycle = "2025020900"
+
+[da.upper_air]
+  active = true
+
+[platform]
+  obs_dir = "/scratch/sis/da/obs/@YYYY@/@MM@/@DD@"
+
+[submission]
+  bindir = "/ec/res4/scratch/sis/install/pr/intel/bin/"
+  precision = "R64"
+
+[suite_control]
+  do_assimilation = true
+  mode = "start"
+
+[submission.task_exceptions.Canari]
+  NPROC = 16
+
+[submission.task_exceptions.Canari.BATCH]
+  MEM = "#SBATCH --mem=120000MB"
+  NODES = "#SBATCH --nodes=1"
+  NTASKS = "#SBATCH --ntasks=16"
+  WALLTIME = "#SBATCH --time=00:30:00"
+
+[domain]
+  tstep = 50
+
+
+

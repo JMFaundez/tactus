@@ -1,6 +1,10 @@
 [da]
   scratch = "@CASEDIR@/da/@YYYY@/@MM@/@DD@/@HH@/@MEMBER_STR@"
   obs_provider = "LACE"
+  # Constants for Canari and OopsVar
+  const_dir = "/perm/sis/da/const"
+  rttov_coef_dir = "@DA.CONST_DIR@/rttov"
+  varbc_init_dir = "/perm/sis/da/varbc_init"
 
 [da.surface]
   method = "CANARI"
@@ -12,6 +16,11 @@
   bator_slot_len = "PT0H"
   bator_nbslot = 1
   nbpool = 16
+  # Also select observations up to bator_canzone km outside the domain
+  # (BATOR's .NOT.LVAR branch). Keep false: obatabs.F90 places observations
+  # only inside C+I, so halo observations reach MKGLOBSTAB_MODEL with
+  # lat=lon=0 and abort it with 'IWRONG1 NE 0'.
+  canari_halo = false
 
 [da.upper_air]
   method = "3DVAR"
