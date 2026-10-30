@@ -3,6 +3,7 @@
 
 [general.times]
   start = "2025-02-09T00:00:00Z"
+  forecast_range = "PT1H"
 
 [da.surface]
   active = false
@@ -13,6 +14,9 @@
   odbconverter = "Obsconvert"
   bator_window_len = "PT1H"
   bator_window_shift = "-PT30M"
+
+[da.upper_air.oopsvar.oops_update.variational.iteration]
+  ninner = "1"
 
 [platform]
   obs_dir = "/scratch/sis/da/obs/@YYYY@/@MM@/@DD@"

@@ -234,10 +234,72 @@ class OopsVar(Task):
 
         Args:
             analysis_time (str): Analysis time, ISO 8601
-
         """
         config_yml = self.nlgen.nlfile.parent / "oovar_config.yml"
         with open(config_yml, encoding="utf-8") as f:
             text = f.read().replace("{analysis_time}", analysis_time)
+        data = yaml.safe_load(text)
+
+        update = self.config.get("da.upper_air.oopsvar.oops_update", None)
+        if update:
+            self._apply_update(data, update, path="oops")
+
         with open("oops.json", "w", encoding="utf-8") as f:
-            json.dump(yaml.safe_load(text), f, indent=2)
+            json.dump(data, f, indent=2)
+
+    @staticmethod
+    def _apply_update(base, update, path="oops"):
+        """Apply an experiment override onto the parsed OOPS configuration.
+    
+        The walk is driven by the keys of the update. For each key, the shape
+        of the template value selects the action: descend, broadcast, or
+        replace. Every other shape combination, and every key unknown to the
+        template, is a configuration error.
+    
+        Args:
+            base (dict): Parsed oovar_config.yml section.
+            update (dict): Override from da.upper_air.oopsvar.oops_update.
+            path (str): Dotted location, for error messages and logging.
+    
+        Raises:
+            KeyError: The update names a key the template does not have.
+            TypeError: The update value has a shape that cannot be applied.
+        """
+        for key, value in update.items():
+            location = f"{path}.{key}"
+            if key not in base:
+                raise KeyError(f"OopsVar: unknown oops.json key '{location}'")
+            current = base[key]
+    
+            if isinstance(current, dict):
+                if not isinstance(value, dict):
+                    raise TypeError(
+                        f"OopsVar: '{location}' is a section; "
+                        f"supply a table, got {type(value).__name__}"
+                    )
+                OopsVar._apply_update(current, value, location)
+            elif isinstance(current, list):
+                if isinstance(value, list):
+                    base[key] = value
+                elif isinstance(value, dict):
+                    for index, element in enumerate(current):
+                        if not isinstance(element, dict):
+                            raise TypeError(
+                                f"OopsVar: cannot broadcast a table onto "
+                                f"'{location}[{index}]'"
+                            )
+                        OopsVar._apply_update(element, value, f"{location}[{index}]")
+                else:
+                    raise TypeError(
+                        f"OopsVar: '{location}' is an array; supply an array "
+                        f"or a table, got {type(value).__name__}"
+                    )
+            else:
+                if isinstance(value, (dict, list)):
+                    raise TypeError(
+                        f"OopsVar: '{location}' is a plain value; cannot "
+                        f"apply a {type(value).__name__}"
+                    )
+                base[key] = str(value) if isinstance(current, str) else value
+    
+            logger.info("OopsVar: oops.json override applied at '{}'", location)
