@@ -3,7 +3,7 @@
 
 [general.times]
   start = "2025-02-09T03:00:00Z"
-  forecast_range = "PT1H"
+  forecast_range = "PT3H"
 
 [da.surface]
   active = false
@@ -21,7 +21,7 @@
   archive_odb = true
 
 [da.upper_air.oopsvar.oops_update.variational.iteration]
-  ninner = "1"
+  ninner = "0"
 
 [platform]
   obs_dir = "/scratch/sis/da/obs/@YYYY@/@MM@/@DD@"
