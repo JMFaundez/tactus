@@ -85,6 +85,13 @@ class ObsprocSuiteDefinition(SuiteDefinition):
                         da_stream=da_stream,
                         ecf_files_remotely=self.ecf_files_remotely,
                     )
+                    cycle_dir = config_basetime.strftime("%Y/%m/%d/%H")
+
+                    # inside the loop, when creating the OopsVar task:
+                    lead_seconds = int(dt.total_seconds())
+                    lh = int(lead_seconds // 3600)
+                    lm = int((lead_seconds % 3600) // 60)
+                    ls = int(lead_seconds % 60)
                     # OOPS Var: a single OOVAR call handles screening + minimization.
                     EcflowSuiteTask(
                         "OopsVar",
@@ -94,6 +101,12 @@ class ObsprocSuiteDefinition(SuiteDefinition):
                         self.ecf_files,
                         input_template=input_template,
                         trigger=obs_family.odb_family,
+                        variables={
+                          "ARGS": (
+                              f"lead={lh:04d}h{lm:02d}m{ls:02d}s"
+                              f";cycle={cycle_dir}"
+                          )
+                        },
                         ecf_files_remotely=self.ecf_files_remotely,
                     )
                     obs_trigger.append(obs_family)

@@ -2,7 +2,7 @@
   case = "obsproc_example_@DA.OBS_PROVIDER@_@YMD_START@_@HH_START@"
 
 [general.times]
-  start = "2025-02-09T00:00:00Z"
+  start = "2025-02-09T03:00:00Z"
   forecast_range = "PT1H"
 
 [da.surface]
@@ -14,6 +14,11 @@
   odbconverter = "Obsconvert"
   bator_window_len = "PT1H"
   bator_window_shift = "-PT30M"
+
+[da.upper_air.oopsvar]
+  background = "@CASEDIR@/bg_verification/@TASK.ARGS.CYCLE@/@MEMBER_STR@/ICMSHACRD+@TASK.ARGS.LEAD@"
+  require_varbc = false
+  archive_odb = true
 
 [da.upper_air.oopsvar.oops_update.variational.iteration]
   ninner = "1"

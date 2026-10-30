@@ -53,6 +53,8 @@ class OopsVar(Task):
         self.varbc_init_dir = config.get("da.varbc_init_dir", "")
         self.rttov_coef_dir = config["da.rttov_coef_dir"]
         self.bgcycle = config.get("da.bgcycle", "")
+        self.require_varbc = config.get("da.upper_air.oopsvar.require_varbc", True)
+        self.archive_odb = config.get("da.upper_air.oopsvar.archive_odb", False)
         self.obs = Observations(config, da_stream="upper_air")
         self.nlgen = NamelistGenerator(config, "oovar")
         logger.debug("Constructed OopsVar task")
@@ -81,11 +83,14 @@ class OopsVar(Task):
         self.fmanager.input_data_iterator(input_data)
 
         # --- background: the blended surface analysis ---
-        background = os.path.join(
+        default_background = os.path.join(
             da_scratch, "surface", "blendsur", "ICMSHANAL+0000_updated_surface"
         )
+        self.background = self.platform.substitute(
+            self.config.get("da.upper_air.oopsvar.background", default_background)
+        )
         # OOVAR writes the analysis into a copy of the background
-        self.fmanager.input(background, "ICMSHOOPS+0000", provider_id="copy")
+        self.fmanager.input(self.background, "ICMSHOOPS+0000", provider_id="copy")
         for link in [
             "ICMSHMINIIMIN",
             "ICMSHMINIINIT",
@@ -187,6 +192,21 @@ class OopsVar(Task):
         tactusmakedirs(out_dir)
         for fname in [analysis, "VARBC.cycle"]:
             self.fmanager.output(fname, os.path.join(out_dir, fname), provider_id="copy")
+        if self.archive_odb:
+            for odb in ["ECMA", "CCMA"]:
+                target = os.path.join(out_dir, odb)
+                if os.path.isdir(target):
+                    shutil.rmtree(target)
+                shutil.copytree(odb, target, symlinks=True)
+            for entry in os.listdir(self.wdir):
+                if entry.startswith("ECMA.") and not os.path.lexists(
+                    os.path.join(out_dir, entry)
+                ):
+                    os.symlink(
+                        os.readlink(os.path.join(self.wdir, entry)),
+                        os.path.join(out_dir, entry),
+                    )
+            logger.info( "OopsVar: archived feedback ECMA and active CCMA to {}", out_dir,)
         logger.info("OopsVar: analysis and VarBC archived to {}", out_dir)
         self.archive_logs(["oops.log", "NODE.001_01"])
 
@@ -226,8 +246,9 @@ class OopsVar(Task):
                 self.fmanager.input(candidate, "VARBC.cycle", provider_id="copy")
                 logger.info("OopsVar: VarBC from {}", candidate)
                 return
-        if self.basetime.strftime("%Y%m%d%H") != self.bgcycle:
+        if self.require_varbc and  self.basetime.strftime("%Y%m%d%H") != self.bgcycle:
             raise FileNotFoundError(f"OopsVar: no VarBC file found in {candidates}")
+        logger.info("OopsVar: no VarBC input; running with cold-start VarBC")
 
     def _write_oops_json(self, analysis_time):
         """Write oops.json from oovar_config.yml for this analysis time.
@@ -240,7 +261,7 @@ class OopsVar(Task):
             text = f.read().replace("{analysis_time}", analysis_time)
         data = yaml.safe_load(text)
 
-        update = self.config.get("da.upper_air.oopsvar.oops_update", None)
+        update = self.config.get_as_dict("da.upper_air.oopsvar.oops_update", None)
         if update:
             self._apply_update(data, update, path="oops")
 
@@ -250,12 +271,6 @@ class OopsVar(Task):
     @staticmethod
     def _apply_update(base, update, path="oops"):
         """Apply an experiment override onto the parsed OOPS configuration.
-    
-        The walk is driven by the keys of the update. For each key, the shape
-        of the template value selects the action: descend, broadcast, or
-        replace. Every other shape combination, and every key unknown to the
-        template, is a configuration error.
-    
         Args:
             base (dict): Parsed oovar_config.yml section.
             update (dict): Override from da.upper_air.oopsvar.oops_update.
