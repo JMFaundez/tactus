@@ -1,0 +1,47 @@
+# Example configuration for the jbdown suite.
+
+[general]
+  case = "jbdown_@DOMAIN@_@YMD_START@_@HH_START@"
+  cnmexp = "JBDA"
+
+[general.times]
+  start = "2026-10-01T00:00:00Z" 
+  end = "2026-10-04T00:00:00Z" 
+  cycle_length = "PT3H"
+  forecast_range = "PT3H"
+
+[boundaries]
+  bdint = "PT3H"
+  max_interpolation_tasks = 4
+[eps.general]
+  members = [1, 2, 3, 4]
+
+[jb]
+  #dtgbeg = "2020-06-01T00:00:00Z"   # optional; defaults to general.times.start
+  fc_dir = "@CASEDIR@/archive/@YYYY@/@MM@/@DD@/@HH@/@MEMBER_STR@"
+  # case_lead = "PT6H"
+  case_prefix = "case" 
+  cname = "ICMSH@CNMEXP@+0000"
+  nfrgrp = 8
+  output_dir = "@CASEDIR@/jb/jbdata"
+  publish_stabal96 = true
+
+[system]
+  intp_bddir = "@CASEDIR@/intp_bd/@YYYY@/@MM@/@DD@/@HH@/@MEMBER_STR@"
+  intp_bddir_sfx = "@CASEDIR@/intp_bd/@YYYY@/@MM@/@DD@/@HH@/@MEMBER_STR@"
+
+[suite_control]
+  suite_definition = "JbdownSuiteDefinition"
+  create_static_data = true
+  create_time_dependent_suite = true
+  do_cleaning = true
+  max_static_data_tasks = 4
+  mode = "start"
+  use_festat = true
+
+[submission]
+#  bindir = "/path/to/ial/bin"
+  max_ecf_tasks = 24
+
+[submission.task_exceptions.Festat]
+  NPROC = 16

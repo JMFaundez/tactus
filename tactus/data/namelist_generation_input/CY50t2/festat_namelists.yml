@@ -1,0 +1,18 @@
+# FESTAT namelist sections (FA-reading variant)
+# -------------------------------------------
+
+festat_fort4_base:
+  NAMFESTAT:
+    NCASES: 0             # patched at run time
+    LSTABAL: true
+    LANAFBAL: true
+    LELAM: true
+    CNAME: 'ICMSH+0000'    # patched at run time from jb.cname
+    NFRGRP: ${cfg:jb.nfrgrp,8}
+    NPRINTLEV: 0
+    LOZONE: false
+    LOZBAL: false
+    LUVBAL: false
+    OUTBAL: 'stab'         # patched at run time
+    OUTCVT: 'stab'         # patched at run time
+    OUTCVU: 'stab'         # patched at run time
