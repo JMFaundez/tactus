@@ -6,7 +6,7 @@
 
 [general.times]
   start = "2026-10-01T00:00:00Z" 
-  end = "2026-10-04T00:00:00Z" 
+  end = "2026-10-03T21:00:00Z" 
   cycle_length = "PT3H"
   forecast_range = "PT3H"
 
@@ -20,8 +20,8 @@
   #dtgbeg = "2020-06-01T00:00:00Z"   # optional; defaults to general.times.start
   fc_dir = "@CASEDIR@/archive/@YYYY@/@MM@/@DD@/@HH@/@MEMBER_STR@"
   # case_lead = "PT6H"
-  case_prefix = "case" 
-  cname = "ICMSH@CNMEXP@+0000"
+  #case_prefix = "case" 
+  cname = "ICMSH@CNMEXP@+0"
   nfrgrp = 8
   output_dir = "@CASEDIR@/jb/jbdata"
   publish_stabal96 = true
@@ -43,5 +43,22 @@
 #  bindir = "/path/to/ial/bin"
   max_ecf_tasks = 24
 
+
+[cleaning.CycleCleaning.archive]
+  active = false
+
+
 [submission.task_exceptions.Festat]
-  NPROC = 16
+  NPROC = 96
+  NPROCX = 1
+  NPROCY = 96
+  
+[submission.task_exceptions.Festat.BATCH]
+  NODES = "#SBATCH --nodes=6"
+  NTASKS = "#SBATCH --ntasks-per-node=16"
+  WALLTIME = "#SBATCH --time=01:00:00"
+  QOS = "#SBATCH --qos=np"
+
+[submission.task_exceptions.Festat.ENV]
+  DR_HOOK_ASSERT_MPI_INITIALIZED = 0
+  OMP_NUM_THREADS=1

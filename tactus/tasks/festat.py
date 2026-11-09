@@ -44,9 +44,9 @@ class Festat(Task):
             config.get("jb.case_lead", config["general.times.forecast_range"])
         )
         self.fc_dir = config["jb.fc_dir"]
-        self.fc_file = config.get("jb.fc_file", "ICMSH@CNMEXP@+@FCLENGTH@")
-        self.case_prefix = config.get("jb.case_prefix", "case")
-        self.cname = config.get("jb.cname", "ICMSH@CNMEXP@+0000")
+        self.fc_file = config.get("jb.fc_file", "ICMSH@CNMEXP@+@FCLENGTH@h00m00s")
+        self.case_prefix = config.get("jb.case_prefix", "ICMSH@CNMEXP@+")
+        self.cname = config.get("jb.cname", "ICMSH@CNMEXP@+0")
         self.output_dir = config["jb.output_dir"]
         self.publish_stabal96 = config.get("jb.publish_stabal96", True)
 
@@ -56,9 +56,10 @@ class Festat(Task):
     def execute(self):
         """Collect the member forecasts, run FESTAT, archive statistics."""
         # --- input cases: resolve and link as <case_prefix>NNN ---
+        self.case_prefix = self.case_prefix.replace("@CNMEXP@", self.config["general.cnmexp"])
         case_files = self._collect_cases()
         for n, fname in enumerate(case_files, start=1):
-            target = f"{self.case_prefix}{n:03d}"
+            target = f"{self.case_prefix}{n:04d}"
             if not os.path.lexists(target):
                 os.symlink(fname, target)
         ncases = len(case_files)
@@ -90,12 +91,35 @@ class Festat(Task):
                 "NPROC", self.config.get("submission.task_exceptions.Festat.NPROC", 16)
             )
         )
+        nprocx = int(
+            os.environ.get(
+                "NPROCX", self.config.get("submission.task_exceptions.Festat.NPROCX", 1)
+            )
+        )
+        nprocy = int(
+            os.environ.get(
+                "NPROCY", self.config.get("submission.task_exceptions.Festat.NPROCY", 1)
+            )
+        )
+        omp_threads = int(
+            os.environ.get(
+                "OMP_NUM_THREADS",
+                self.config.get(
+                    "submission.task_exceptions.Festat.OMP_NUM_THREADS", 1
+                ),
+            )
+        )
+        # The processor grid and the thread count are read from the
+        # job environment, which the submission layer populates from
+        # the task exceptions, so the parallel configuration of the
+        # case reaches the binary unmodified; the defaults keep the
+        # task runnable as a plain serial job
         rte = {
             **os.environ,
-            "OMP_NUM_THREADS": "1",
+            "OMP_NUM_THREADS": str(omp_threads),
             "NPROC": str(nproc),
-            "NPROCX": "1",
-            "NPROCY": "1",
+            "NPROCX": str(nprocx),
+            "NPROCY": str(nprocy),
         }
 
         # --- run FESTAT ---
